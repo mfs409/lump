@@ -1,0 +1,40 @@
+{% comment %}
+  Presenter notes for a deck (notes2pdf).
+  Variables:
+    deckName  shown in the heading
+    slides    list of { title, notes }, where notes is a list of rendered
+              HTML strings (one per <!-- --> comment on that slide)
+  plus base.liquid's variables.
+{% endcomment -%}
+{% layout "base" %}
+
+{% block styles %}
+  body { max-width: 44em; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2em; margin-top: 2.2em; page-break-after: avoid; }
+  .slide-notes { page-break-inside: avoid; }
+  .note-sep { border: none; border-top: 1px dashed #ccc; margin: 1em 0; }
+  pre code { font-size: 0.85em; line-height: 1.4; }
+  ul { margin: 0.3em 0; padding-left: 1.4em; }
+  li { margin: 0.15em 0; }
+  li > p { margin: 0; }
+  .empty { color: #888; font-style: italic; }
+  @media print {
+    a { color: inherit; text-decoration: none; }
+    pre { white-space: pre-wrap; }
+  }
+{% endblock %}
+
+{% block body %}
+<h1>{{ deckName }} -- Presenter Notes</h1>
+{% for slide in slides %}
+<section class="slide-notes">
+  <h2>{{ forloop.index }}. {{ slide.title }}</h2>
+  {%- for note in slide.notes %}
+  {% unless forloop.first %}<hr class="note-sep">{% endunless %}
+  {{ note | raw }}
+  {%- else %}
+  <p class="empty">(no notes)</p>
+  {%- endfor %}
+</section>
+{% endfor %}
+{% endblock %}

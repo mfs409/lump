@@ -1,0 +1,15 @@
+{% comment %}
+  A plain Markdown document (md2pdf).
+  Variables: contentHtml (the rendered Markdown), plus base.liquid's variables.
+{% endcomment -%}
+{% layout "base" %}
+
+{% block styles %}
+  body { max-width: 46em; }
+  h1 { border-bottom: 2px solid {{ ACCENT }}; padding-bottom: 0.2em; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.15em; margin-top: 1.8em; }
+{% endblock %}
+
+{% block body %}
+{{ contentHtml | raw }}
+{% endblock %}

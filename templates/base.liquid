@@ -1,0 +1,53 @@
+{% comment %}
+  Shared page shell for md2pdf (document.liquid) and the notes commands
+  (notes.liquid).
+
+  Variables:
+    title       page title
+    baseHref    optional: folder that relative links/images resolve against
+  Always provided by scripts/lib/templates.ts: ACCENT, KATEX_CSS, MERMAID_JS
+
+  Child templates fill in the `styles` and `body` blocks.
+{% endcomment -%}
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+{%- if baseHref %}
+<base href="{{ baseHref }}">
+{%- endif %}
+<title>{{ title }}</title>
+<link rel="stylesheet" href="{{ KATEX_CSS }}">
+<style>
+  body { font-family: Georgia, 'Times New Roman', serif; margin: 2em auto; line-height: 1.5; color: #111; }
+  h1, h2, h3, h4 { font-family: Lato, Arial, sans-serif; }
+  a { color: {{ ACCENT }}; }
+  code { background: #f2f2f2; padding: 0 0.25em; font-family: Menlo, Consolas, monospace; font-size: 0.9em; }
+  pre { background: #f7f7f7; border: 1px solid #ddd; border-radius: 4px; padding: 0.8em 1em; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  /* Highlighted code: Shiki sets its theme's white background on the element
+     itself, so !important is needed to keep the pale grey */
+  pre.shiki { background-color: #f7f7f7 !important; }
+  pre.mermaid { background: none; border: none; text-align: center; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #ccc; padding: 0.4em 0.7em; text-align: left; }
+  th { background: #f2f2f2; }
+  tr:nth-child(even) td { background: #fafafa; }
+  blockquote { border-left: 3px solid #ccc; margin: 1em 0; padding: 0.2em 1em; color: #444; }
+  img { max-width: 100%; }
+  .math-display { margin: 1em 0; overflow-x: auto; }
+  @media print {
+    body { margin: 0; max-width: none; }
+    table, pre, blockquote, .math-display { page-break-inside: avoid; }
+    h1, h2, h3 { page-break-after: avoid; }
+  }
+{%- block styles %}{% endblock %}
+</style>
+</head>
+<body>
+{% block body %}{% endblock %}
+{%- comment %} mermaid.js draws every <pre class="mermaid"> block {% endcomment %}
+<script src="{{ MERMAID_JS }}"></script>
+<script>mermaid.initialize({ startOnLoad: true, theme: 'neutral' });</script>
+</body>
+</html>

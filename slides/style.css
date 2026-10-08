@@ -1,0 +1,30 @@
+/*
+ * Hide the "Goto slide" quick-search panel when it's not actively opened
+ */
+#slidev-goto-dialog:not(:has(input:focus)) {
+  display: none !important;
+}
+
+/*
+ * This tries to fix a bug where having newlines between any bullets on a slide
+ * leads to extra whitespace between all bullets on a slide.
+ */
+li > p {
+  margin: 0;
+}
+
+/*
+ * The default accent color for everything: slides, documents and notes.  To
+ * change it, edit this one line (lump reads it from here for documents and
+ * notes).  A single document or deck can use another color by setting
+ * themeConfig: primary: '#...' in its frontmatter.
+ */
+:root {
+  --slidev-theme-primary: #502d0e;
+}
+h1 {
+  color: var(--slidev-theme-primary);
+}
+.text-xs.p-2.absolute.top-0.right-0 {
+  color: var(--slidev-theme-primary);
+}

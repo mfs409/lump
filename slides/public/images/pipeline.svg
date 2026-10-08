@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 120" width="640" height="120" font-family="Lato, Arial, sans-serif" font-size="20">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#502d0e"/>
+    </marker>
+  </defs>
+  <g fill="#f6efe8" stroke="#502d0e" stroke-width="2">
+    <rect x="10" y="30" width="160" height="60" rx="8"/>
+    <rect x="240" y="30" width="160" height="60" rx="8"/>
+    <rect x="470" y="30" width="160" height="60" rx="8"/>
+  </g>
+  <g fill="#502d0e" text-anchor="middle" dominant-baseline="middle">
+    <text x="90" y="60">Markdown</text>
+    <text x="320" y="60">Slidev / HTML</text>
+    <text x="550" y="60">PDF</text>
+  </g>
+  <g stroke="#502d0e" stroke-width="2" marker-end="url(#arrow)">
+    <line x1="172" y1="60" x2="236" y2="60"/>
+    <line x1="402" y1="60" x2="466" y2="60"/>
+  </g>
+</svg>
