@@ -9,6 +9,12 @@ It is built on top of [slidev](https://sli.dev/), and solves a few important wor
 
 Lump solves these via a few simple command-line scripts that call out to the slidev ecosystem.
 
+Lump also has a video component that can be useful if you're planning to deliver slides from a browser.
+The syntax is `<Vid><video src="/videos/x.mp4"></video></Vid>`.
+The `Vid` component gives space, arrow, and shift-arrow for navigation.
+Note that clicking a video moves key capture to it.
+Pressing escape returns key capture to the slides.
+
 ## Usage
 
 Everything is done through one command-line tool, `lump`:
