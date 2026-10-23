@@ -6,7 +6,7 @@
  * its caller to check that argument before calling it.
  */
 export interface Command {
-  /** The name typed after `npm run lump`, e.g. `"md2pdf"`. */
+  /** The name typed after `lump`, e.g. `"md2pdf"`. */
   name: string;
 
   /**
@@ -15,8 +15,14 @@ export interface Command {
    */
   arg: string;
 
-  /** A one-line description, shown by `npm run lump help`. */
+  /** A one-line description, shown by `lump help`. */
   summary: string;
+
+  /**
+   * What the command's required `-o` option names, as shown in help and usage messages: `"<out.pdf>"` for a file,
+   * `"<out-folder>"` for a folder. Absent for a command that writes nothing (and so takes no `-o`).
+   */
+  output?: string;
 
   /**
    * Runs the command.
@@ -33,6 +39,12 @@ export interface MarkdownFile {
   /** Absolute path to the file. */
   file: string;
 
-  /** The file's base name without `.md`, used to name outputs in `out/`. */
+  /** The file's base name without `.md`, used in messages. */
   name: string;
+
+  /**
+   * Absolute path of the `-o` option: where the command writes its output. (The empty string for a command without
+   * `output`.) It is not the Markdown file itself, and, for a command whose output is a file, not a folder.
+   */
+  out: string;
 }

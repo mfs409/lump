@@ -7,14 +7,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
-/** The project's root folder (the one containing `package.json`). */
+/** lump's own folder (the one containing its `package.json`), wherever lump is linked or installed from. */
 export const ROOT = path.join(import.meta.dirname, '..', '..');
 
-/** Where every command writes its output: `out/` in the project root. */
-export const OUT_DIR = path.join(ROOT, 'out');
-
-/** The stylesheet for the slides, which also holds the default accent color. */
-export const STYLE_CSS = path.join(ROOT, 'slides', 'style.css');
+/** lump's default stylesheet for slides, which also holds the default accent color. */
+export const STYLE_CSS = path.join(ROOT, 'slidev', 'style.css');
 
 /**
  * An error whose message is meant for the user, such as a missing file or a
@@ -63,11 +60,11 @@ export function splitFrontmatter(source: string, filePath: string): Frontmatter 
  * The default accent color, for files whose frontmatter doesn't set one.
  *
  * It is read from the `--slidev-theme-primary: <color>;` line in
- * `slides/style.css`, which is also the default color of the slides.
+ * `slidev/style.css` (in lump's folder), which is also the default color of the slides.
  *
  * @returns The color, exactly as written in the CSS (e.g. `#502d0e`).
  *
- * @throws {LumpError} If `slides/style.css` is missing or has no such line.
+ * @throws {LumpError} If `slidev/style.css` is missing or has no such line.
  */
 function defaultAccentColor(): string {
   // Comments are removed first, so a commented-out line doesn't count
@@ -92,7 +89,7 @@ function defaultAccentColor(): string {
  *   primary: '#502d0e'
  * ```
  *
- * Otherwise it is the default from `slides/style.css`.
+ * Otherwise it is the default from `slidev/style.css`.
  *
  * @param data     The file's frontmatter settings.
  * @param filePath The file's path, for error messages.

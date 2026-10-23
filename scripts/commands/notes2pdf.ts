@@ -1,6 +1,6 @@
 /**
  * `lump notes2pdf <deck.md>`: print a deck's presenter notes (not its slides;
- * see slides2pdf) to `out/<deck>.notes.pdf`.
+ * see slides2pdf) to the PDF named by `-o`.
  *
  * The notes are the `<!-- ... -->` comments in each slide. They are gathered,
  * in slide order under each slide's title, into one HTML page, which is printed
@@ -13,8 +13,9 @@
  * @module
  */
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import { OUT_DIR, accentColor, deckSlides, splitFrontmatter } from '../lib/config.ts';
+import { accentColor, deckSlides, splitFrontmatter } from '../lib/config.ts';
 import { createMarkdown } from '../lib/markdown.ts';
 import { renderPage } from '../lib/templates.ts';
 import { printToPdf } from '../lib/chrome.ts';
@@ -64,17 +65,19 @@ async function notesHtml(deckPath: string, deckName: string) {
 export const notes2pdf: Command = {
   name: 'notes2pdf',
   arg: '<deck.md>',
-  summary: "Deck's presenter notes -> out/<deck>.notes.pdf",
-  async run({ file, name }) {
+  output: '<out.pdf>',
+  summary: "Deck's presenter notes -> PDF",
+  async run({ file, name, out }) {
     // Save the page as a temporary file, print it, and delete it (even if
     // printing fails)
-    fs.mkdirSync(OUT_DIR, { recursive: true });
-    const htmlPath = path.join(OUT_DIR, `${name}.notes.tmp.html`);
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lump-'));
+    const htmlPath = path.join(tmpDir, `${name}.notes.html`);
     fs.writeFileSync(htmlPath, await notesHtml(file, name), 'utf8');
     try {
-      return printToPdf(htmlPath, path.join(OUT_DIR, `${name}.notes.pdf`));
+      return printToPdf(htmlPath, out);
     } finally {
-      fs.unlinkSync(htmlPath);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   },
 };

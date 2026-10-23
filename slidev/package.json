@@ -1,0 +1,7 @@
+{
+  "name": "slidev-addon-lump",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "lump's Slidev addon: the Manim player, page numbers, slide-insert buttons, and default styles. Added to every deck by `lump` (see scripts/lib/slidev.ts); not meant to be installed on its own."
+}

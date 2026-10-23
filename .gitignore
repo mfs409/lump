@@ -5,3 +5,13 @@ node_modules/
 
 # generated output
 out/
+
+# Python (rendering the example's Manim video; see examples/slides/manim/square_to_circle.py)
+.venv/
+media/
+__pycache__/
+
+# Emacs lock and auto-save files
+.#*
+#*#
+*~

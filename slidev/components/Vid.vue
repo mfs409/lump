@@ -16,15 +16,12 @@
 //   <Vid>
 //     <video src="/videos/demo.mp4"></video>
 //   </Vid>
+//
+// The picture shown when it is not playing (and in a PDF) is the video at 0.1 seconds, which skips a first frame that
+// is often blank. To show another moment, give it in seconds: <Vid :start="3.5">.
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
-/**
- * Where a video sits when it is not playing, in seconds
- *
- * Defaulting to .1 skips the first frame, which is often blank.  This is good
- * for PDF export.
- */
-const START = 0.1
+const props = withDefaults(defineProps<{ start?: number }>(), { start: 0.1 })
 
 /**
  * The wrapper element; the slot's `<video>` is found inside it once mounted
@@ -94,7 +91,7 @@ function refocus() {
  * a seek is allowed.
  */
 function park() {
-  if (el && el.currentTime === 0) el.currentTime = START;
+  if (el && el.currentTime === 0) el.currentTime = props.start;
 }
 
 /**
@@ -127,7 +124,7 @@ onMounted(() => {
     for (const en of entries) {
       if (!en.isIntersecting && el) {
         el.pause()
-        el.currentTime = START
+        el.currentTime = props.start
       }
     }
   })

@@ -1,65 +1,31 @@
 /**
- * `lump slides2pdf <deck.md>`: export a deck's slides to `out/<deck>.pdf`, one
+ * `lump slides2pdf <deck.md> -o <out.pdf>`: export a deck's slides to a PDF, one
  * page per slide, shaped like the slides (16:9 unless the deck's frontmatter
  * sets `aspectRatio`).
  *
- * Each slide is printed separately, from its own URL on a slidev dev server,
- * and the pages are then merged into one PDF.
- * - Printing slides one at a time keeps the theme's page numbers correct
+ * The whole deck is printed in one go, from slidev's `/export?print` page on a
+ * dev server, which lays out every slide as one printable page.
+ * - The theme's page numbers are correct here because `slidev/global-top.vue` (lump's addon)
+ *   numbers each slide itself (the theme's own number shows "1" on every page)
  * - Playwright's `page.pdf()` sets the exact page size (vs US Letter in Chrome)
- *
- * Requires `pdfunite` (from poppler-utils) for the merge.
  *
  * @module
  */
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
-import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { chromium } from 'playwright-chromium';
-import { LumpError, OUT_DIR, ROOT, deckSlides, findChrome, splitFrontmatter } from '../lib/config.ts';
+import { LumpError, deckSlides, findChrome, splitFrontmatter } from '../lib/config.ts';
+import { SLIDEV_BIN, themeArgs } from '../lib/slidev.ts';
 import type { Command } from '../lib/command.ts';
 
 /**
- * The width of each page, in pixels: large, for crisp output.  The height will
- * be determined via the slide's aspect ratio.
+ * How long to let the printable page settle before printing it, in
+ * milliseconds, so that diagrams and late-loading content finish drawing.
  */
-const PAGE_WIDTH = 1920;
-
-/**
- * Compute the page size for a deck, from the `aspectRatio` setting in its
- * frontmatter (the block between `---` lines at the top of the deck), which
- * is also what makes slidev lay the slides out at that shape. Slidev accepts
- * a fraction (`aspectRatio: 4/3`, quoted or not) or a number
- * (`aspectRatio: 1.333`); without the setting, decks are 16:9.
- *
- * @param data     The deck's frontmatter settings (see `splitFrontmatter`).
- * @param deckPath The deck's path, for the error message.
- *
- * @returns The page size in pixels, {@link PAGE_WIDTH} wide; also used as the
- *          browser window size.
- *
- * @throws {LumpError} If `aspectRatio` is set to something that isn't a
- *         positive fraction or number.
- */
-function pageSize(data: Record<string, unknown>, deckPath: string) {
-  const setting = data.aspectRatio;
-  let ratio = 16 / 9;
-  if (setting !== undefined) {
-    // YAML reads 1.333 as a number, and 4/3 as text
-    const value = String(setting).trim();
-    const fraction = value.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
-    ratio = fraction ? Number(fraction[1]) / Number(fraction[2]) : Number(value);
-    if (!(ratio > 0 && Number.isFinite(ratio))) {
-      throw new LumpError(
-        `Could not understand "aspectRatio: ${setting}" in ${deckPath}.\nUse a fraction like 16/9 or 4/3, or a number like 1.333.`
-      );
-    }
-  }
-  return { width: PAGE_WIDTH, height: Math.round(PAGE_WIDTH / ratio) };
-}
+const SETTLE_MS = 1000;
 
 /**
  * Find a free port, by asking the operating system for one: a socket opened on
@@ -105,49 +71,40 @@ async function waitForServer(url: string, maxTries: number, stillRunning: () => 
 export const slides2pdf: Command = {
   name: 'slides2pdf',
   arg: '<deck.md>',
-  summary: 'Slidev deck -> out/<deck>.pdf (one page per slide)',
-  async run({ file: deckPath, name: deckName }) {
-    // Step 1: check for the programs we need: Chrome and pdfunite
+  output: '<out.pdf>',
+  summary: 'Slidev deck -> PDF (one page per slide)',
+  async run({ file: deckPath, name: deckName, out: outPath }) {
+    // Step 1: find Chrome
     const chromePath = findChrome();
-    if (!spawnSync('which', ['pdfunite']).stdout?.toString().trim()) {
-      throw new LumpError('pdfunite (from poppler-utils) is required to merge the per-slide PDFs, but was not found on PATH.');
-    }
 
-    // Step 2: read the deck, to learn how many pages to print and their size
-    const { data, body } = splitFrontmatter(fs.readFileSync(deckPath, 'utf8'), deckPath);
+    // Step 2: read the deck, to check that it has slides (and to report how
+    // many there are)
+    const { body } = splitFrontmatter(fs.readFileSync(deckPath, 'utf8'), deckPath);
     const slideCount = deckSlides(body).length;
     if (!slideCount) {
       throw new LumpError(`Could not find any slides in ${deckPath}.`);
     }
-    const size = pageSize(data, deckPath);
 
-    // Step 3: make the output folder, and a temporary folder for the
-    // per-slide PDFs (deleted afterward)
-    fs.mkdirSync(OUT_DIR, { recursive: true });
-    const outPath = path.join(OUT_DIR, `${deckName}.pdf`);
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'slides2pdf-'));
+    // Step 3: make the output file's folder
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
 
     // Step 4: start a dev server on a free port (so two exports can run at
     // once). The slidev binary is run directly, not through npx, because
     // killing npx would not stop the server it starts. Its output is kept, to
     // show if it fails to start, and we note when it exits.
+    const theme = themeArgs(deckPath); // (first, so a missing theme is reported before anything starts)
     const port = await freePort();
     console.log(`Starting dev server for ${deckName} on port ${port} ...`);
-    const slidevBin = path.join(ROOT, 'node_modules', '.bin', 'slidev');
-    const server = spawn(slidevBin, [deckPath, '--port', String(port)], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const server = spawn(SLIDEV_BIN, [deckPath, '--port', String(port), ...theme], { stdio: ['ignore', 'pipe', 'pipe'] });
     let serverOutput = '';
     server.stdout.on('data', (chunk) => (serverOutput += chunk));
     server.stderr.on('data', (chunk) => (serverOutput += chunk));
     let serverRunning = true;
     server.on('exit', () => (serverRunning = false));
 
-    // From here on, the server and the temporary folder must be cleaned up
-    // however the export ends: normally or with an error (the `finally`
-    // below), or by Ctrl-C
-    const cleanup = () => {
-      server.kill();
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-    };
+    // From here on, the server must be stopped however the export ends:
+    // normally or with an error (the `finally` below), or by Ctrl-C
+    const cleanup = () => server.kill();
     const onInterrupt = () => {
       cleanup();
       process.exit(130);
@@ -165,44 +122,55 @@ export const slides2pdf: Command = {
         );
       }
 
-      // Step 6: print each slide's page (/1, /2, ...) to its own one-page PDF,
-      // in a browser window the size of the page
+      // Step 6: open the printable page, which has every slide in it, and
+      // give it time to finish loading and drawing
       const browser = await chromium.launch({ executablePath: chromePath });
-      const page = await browser.newPage({ viewport: size });
-      console.log(`Exporting ${slideCount} slides ...`);
-      const slidePdfs: string[] = [];
-      for (let n = 1; n <= slideCount; n++) {
-        // Open the slide, and wait until it has stopped loading files
-        await page.goto(`http://localhost:${port}/${n}`, { waitUntil: 'networkidle' });
-        await page.waitForTimeout(300); // let diagrams and late-loading content finish drawing
-        // Zero-padded names (slide_0001.pdf) keep the files in slide order
-        const slidePdf = path.join(tmpDir, `slide_${String(n).padStart(4, '0')}.pdf`);
+      try {
+        const page = await browser.newPage();
+        console.log(`Exporting ${slideCount} slides ...`);
+        await page.goto(`http://localhost:${port}/export?print`, { waitUntil: 'networkidle' });
+        // On a deck's first run, the dev server may find new dependencies and reload the page, so wait for the
+        // slides to be there (not just for the network to go quiet), and then for the page to settle
+        await page.waitForSelector('.print-slide-container', { timeout: 30000 }).catch(() => {});
+        await page.waitForLoadState('networkidle');
+        await page.waitForTimeout(SETTLE_MS);
+        // Animations (`<Manim>`) draw their last frame once they have started, and videos (`<Vid>`) show their
+        // frame once they have moved to it: wait for both, on every slide, as long as it takes
+        await page
+          .waitForFunction(
+            () =>
+              [...document.querySelectorAll<HTMLElement>('.manim')].every((e) => e.dataset.ready) &&
+              [...document.querySelectorAll('video')].every((v) => v.readyState >= 2 && !v.seeking),
+            null,
+            { timeout: 60000 }
+          )
+          .catch(() => console.log('Some animations or videos were not ready after 60 seconds; printing anyway.'));
+        await page.waitForTimeout(300); // (to draw what they showed last)
+
+        // Step 7: print it, one page per slide. Slidev lays each slide out on
+        // a fixed-size canvas (980 px wide for 16:9, or as set by
+        // `aspectRatio`), so the page is made exactly that size.
+        const canvas = await page.evaluate(() => {
+          const slide = document.querySelector('.print-slide-container') as HTMLElement | null;
+          return slide && { width: slide.offsetWidth, height: slide.offsetHeight };
+        });
+        if (!canvas) {
+          throw new LumpError('Slidev\'s printable page did not show any slides.');
+        }
         await page.pdf({
-          path: slidePdf,
-          width: `${size.width}px`,
-          height: `${size.height}px`,
+          path: outPath,
+          width: `${canvas.width}px`,
+          height: `${canvas.height}px`,
           printBackground: true,
         });
-        slidePdfs.push(slidePdf);
-        // Progress: \r returns to the start of the line, so each count
-        // overwrites the previous one
-        process.stdout.write(`  ${n}/${slideCount}\r`);
-      }
-      console.log(`  ${slideCount}/${slideCount} done`);
-      await browser.close();
-
-      // Step 7: merge the pages with pdfunite (GhostScript messes up font
-      // glyphs)
-      console.log(`Merging into ${outPath} ...`);
-      const mergeRes = spawnSync('pdfunite', [...slidePdfs, outPath]);
-      if (mergeRes.status !== 0) {
-        throw new LumpError('pdfunite merge failed: ' + mergeRes.stderr?.toString());
+      } finally {
+        await browser.close();
       }
       console.log(`Wrote ${outPath}`);
       return 0;
     } finally {
-      // Stop the server and delete the temporary folder, and remove the
-      // Ctrl-C handler, which is no longer needed
+      // Stop the server, and remove the Ctrl-C handler, which is no longer
+      // needed
       process.off('SIGINT', onInterrupt);
       cleanup();
     }

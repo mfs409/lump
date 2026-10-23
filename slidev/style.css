@@ -25,6 +25,19 @@ li > p {
 h1 {
   color: var(--slidev-theme-primary);
 }
-.text-xs.p-2.absolute.top-0.right-0 {
+.lump-pagination {
   color: var(--slidev-theme-primary);
+}
+
+/*
+ * Hide the ink layer while a slide transition runs (toggled by setup/main.ts),
+ * so a slide's ink appears after the transition rather than during it.
+ */
+html.lump-ink-wait #slideshow ~ svg.absolute {
+  visibility: hidden;
+}
+
+/* The theme's own page number (see global-top.vue) */
+.text-xs.p-2.absolute:not(.lump-pagination) {
+  display: none;
 }
